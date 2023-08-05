@@ -1,0 +1,290 @@
+---
+title: "Answers"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install package
+#install.packages(c('psych'))
+
+library(psych)
+
+```
+
+## Question 1
+
+```{r}
+# reading covariance matrix into R
+bears <- read.table('bears_covariance.txt', sep = ',', header = T)
+```
+
+### a. 
+```{r}
+bears[2,3]; bears[3,2]
+all.equal(bears[2,3], bears[3,2])
+```
+
+Both are equal because they are mirror images of themselves or symmetric to each other. For example, within the rows, the second variable is body length while the third variable along the columns is neck circumference (bears[2,3]). Also, along the rows, the third variable is neck circumference while the second variable along the columns is body length.
+
+### b. 
+```{r}
+# verifying that it is a covariance matrix
+isSymmetric.matrix(unname(as.matrix(bears)))
+```
+The covariance above is a covariance matrix
+
+
+### c. Performing PCA
+```{r}
+# PCA
+# Getting the eigen values and vectors for the covariance matrix
+pca <- eigen(bears, symmetric = T)
+
+# get eigen values and vectors
+eigen_vectors <- pca$vectors
+eigen_values <- pca$values
+
+# get the scaled variances
+scaled_variance <- eigen_values/ sum(eigen_values)
+
+scaled_variance
+```
+
+The data can be summarized in a fewer number of variables. From the PCA result above, the first principal component has the highest variance of about 95%. Hence, the first principal component (weights) can be used as the only variable since about 96% of the variance comes from its direction.
+
+### d. 
+
+The first principal component is where the variability in the data is most. From the result in part c, it accounts for about 96% of the variance in the data.
+
+### e.
+```{r}
+eigen_vectors <- as.data.frame(eigen_vectors)
+names(eigen_vectors)  <- paste0('PC', 1:6)
+row.names(eigen_vectors) <- names(bears)
+
+
+print.data.frame(eigen_vectors)
+```
+
+From above, the variable with the most influence in the first principal component is weight, while the variable with the least influence is head_length
+
+
+## Question 2
+
+### a. 
+```{r}
+wine <- read.csv('wine.csv', )
+
+# extract relevant data
+data <- wine[c('chem3', 'chem5', 'chem6', 'chem7', 'chem8', 'chem9')]
+
+# checking for missing values
+sapply(data, function(x) sum(is.na(x)))
+
+```
+
+No missing values in any of the extracted variables
+
+
+### b.
+```{r}
+get_summary_stat <- function(x){
+  mean <- mean(x)
+  median <- median(x)
+  sd <- sd(x)
+  range <- max(x) - min(x)
+  c(mean=mean, median=median, sd =sd, range=range)
+}
+
+
+# get summary data
+sapply(data, get_summary_stat)
+```
+
+The mean and standard deviation of the chemicals would be very relevant for the analysis asked by IWA. This is because, the mean will give information about the average concentration of chemicals in the wines grown within the same region in Italy. Similary, the standard deviation will provide information about how the concentrations of these chemicals deviate from themselves.
+
+
+### c.
+```{r fig.cap='Figure 1: Checking for Outliers', fig.height=5, fig.width=9, fig.align='center'}
+par(mfrow=c(2,3))
+for (col in names(data)) boxplot(wine[col], main=col, ylab='Concentration')
+```
+The boxplot (figure 1) above shows the concentration distributions for smell, taste and alcohol chemicals. From the plot, chem9, a smell chemical has two values that are outliers. Also, for the taste chemicals, both have outliers in them, while for alcohol chemicals, there are no outliers seen in them.
+
+
+### d. Mahalanobis distance
+
+```{r}
+m_obis <- mahalanobis(data, colMeans(data),  cov(data))
+pvalues <- pchisq(m_obis, df=ncol(data)-1, lower.tail = F)
+
+# outliers are considered as values < 0.001
+cat('Number of observations with outliers is: ', sum(pvalues < 0.001), '\n\n')
+
+
+# print the data points
+print.data.frame(data[which(pvalues < 0.001),])
+```
+
+There are 5 observations that are outliers. They should not be investigated further since the number of observations found to contain outliers is only a small number (~2.8%) out of the 178 records.
+
+
+### e.
+
+```{r fig.cap='Figure 2: ScatterPlot Matrix', fig.height=6, fig.width=10, fig.align='center'}
+psych::pairs.panels(data, lm=FALSE, smooth=F,density=F, pch=20, hist.col='steelblue',
+                    jiggle=F, ellipses=F, breaks=25, cex.cor=0.7, stars=T)
+```
+
+Figure 2, shows the scatterplot matrix of all the variables in the data. The lower matrix shows a scatterplot showing the relationship between one variable with the other. On the other side of the matrix is the correlation coefficient scores and their statistical significance (pvalues). The correlation coefficient is a numerical value that shows the linear relationship between one variable and another. Some of the values show that they are statistically significant at 5% threshold, while in some others, a relationship exists but it shows that these relationships are not statistically significant at 5% level. At the diagonal is the histogram chart showing the distribution of each of the variables (chemicals). From the above plot, there is a weak to strong relationship between one variable and another, except for chem 3 and chem 9.
+
+
+### f. 
+```{r}
+# performing PCA
+pca <- prcomp(data, scale. = T)
+summary(pca)
+
+pca$rotation
+```
+
+From the cumulative variance proportion, 5 principal components is sufficient to be retained since they can account for a combined 98% variance in the data.
+
+
+### g.
+
+The second largest eigenvalue is the second principal component. It is the direction where the variance is the most after the first component. It is usually the direction which is not accounted by the first principal component and is orthogonal to it. From the value, the second eigenvalue accounts for about 21% of the variance in the data.
+
+
+### h.
+
+$$y = PC_1 + PC_2 + PC_3 + PC_4 + PC_5$$
+where, 
+
+$$ PC_1 = -0.07*X_{chem3} - 0.24*X_{chem5} - 0.52*X_{chem6} -0.54*X_{chem7} + 0.39*X_{chem8} - 0.46*X_{chem9} $$
+$$ PC_2 = -0.80*X_{chem3} - 0.51*X_{chem5} + 0.01*X_{chem6} + 0.05*X_{chem7} - 0.29*X_{chem8} + 0.06*X_{chem9} $$
+
+$$ PC_3 = 0.30*X_{chem3} - 0.70*X_{chem5} + 0.28*X_{chem6} + 0.24*X_{chem7} + 0.50*X_{chem8} + 0.15*X_{chem9} $$
+$$ PC_4 = -0.34*X_{chem3} + 0.28*X_{chem5} - 0.12*X_{chem6} -0.17*X_{chem7} + 0.54*X_{chem8} + 0.69*X_{chem9} $$
+
+$$ PC_5 = 0.38*X_{chem3} - 0.31*X_{chem5} - 0.50*X_{chem6} - 0.20*X_{chem7} - 0.44*X_{chem8} + 0.52*X_{chem9} $$
+
+
+### i.
+
+From the cumulative variance proportion, the first two PCs measure about 69% different aspects in the data.
+
+
+
+## Question 3
+
+### a. 
+```{r}
+households <- read.csv('household2.csv')
+
+# selecting relevant data
+households <- households[paste0('Q', 1:9)]
+```
+
+Gender should not be included because it is nominal data and does not fit conceptually since the aim is to identify the different aspects of housing that appeal much to individuals, irrespective of gender.
+
+
+### b.
+An EFA will be preferred over PCA because the aim is to find out if there are any dimensions that underlie satisfaction with living conditions.
+
+
+### c.
+
+```{r}
+# Bartlett test for sphericity
+
+cortest.bartlett(cor(households), n=nrow(households))
+
+bartlett.test(households)
+```
+
+From the result of the Bartlett test for sphricity, the pvalue is less than 0.05, hence we will reject the null hypothesis that there's no correlation amongst variables and conclude that at 5% significance level there is evidence to show that there's correlation between variables.
+
+
+### d.
+```{r}
+# Kaiser-Meyer-Olkin factor adequacy
+KMO(households)
+```
+
+From the Kaiser=Meyer-Olkin factor adequacy result, the overall MSA score is 0.96 showing very excellent suitability for EFA. Also from their individual MSA scores, they all have scores above 0.9. Therefore, all factors should be investigated for EFA.
+
+
+### e.
+```{r}
+# fitting an EFA model
+efa_model <- fa(households, nfactors = ncol(households), fm='minres', rotate = 'none')
+
+efa_model
+
+efa_model$loadings
+```
+
+From the proportion of variance, the optimal number of factor is 1, since it contributes about 82% of the variance. We will use the fa.parallel function to determine the optimal number of factors
+
+```{r}
+# selecting optimal number of factor
+set.seed(4)
+fa.parallel(households, fa='fa')
+```
+
+Parallel analysis suggests that the number of factors is 2. 
+
+```{r}
+# refitting with 2 factors
+# fitting an EFA model
+efa_model <- fa(households, nfactors = 2, fm='minres', rotate = 'none')
+
+efa_model$loadings
+```
+
+From the loadings, a simple structure seems to have been achieved in the unrotated form, since all items load mostly on only one factor. For the second factor, the loadings of the items are typically less than 0.3, except in one item with less value.
+
+
+### f.
+Based on the eigen values, the eigen values with the second largest value is 0.228. It gives the amount of variance contributed by each item to the second factor. From the loadings in e, we see that the variables contributing to the second factor include Q2, Q3, Q4, Q7 and Q9.
+
+### g.
+```{r}
+# FA with varimax rotation
+
+efa_model.varimax <- fa(cor(households), nfactors = 2, fm='minres', rotate = 'varimax')
+
+print(efa_model.varimax)
+efa_model.varimax$loadings
+```
+
+Using the varimax rotation seems not to improve the solution. A simple structure seems not to be achieved since all the variables load on more than one factor.
+
+
+### h.
+```{r}
+# comparison
+ # fitting an EFA model with Oblimin rotation
+efa_model.oblimin <- fa(households, nfactors = 2, fm='minres', rotate = 'oblimin', 
+                        n.obs = nrow(households))
+
+efa_model.oblimin
+efa_model.oblimin$loadings
+```
+Based on the loadings, the oblimin rotation and the unrotated form seem to be the same. Most of the items load on the first factor, with items having less than 3 loading value loading on the second factor. The oblimin rotation technique and the unrotated technique seem to have simple structures.
+
+
+### i.
+To achieve a simple structure, a one factor should be chosen and any of the oblimin rotation or unrotated techniques may be chosen.
+
+
+### j.
+By investigating the communality results, EFA seems to be the best technique to use over PCA because, from the communality scores, we are able to understand the variance of each item that can be explained by the factors. For example, about 87% of the variance in Q1 can be explained by all the factors, 81% in Q2, 87% in Q3 and so on. 
+
